@@ -52,7 +52,11 @@ int main(int argc, char* argv[]) {
 	
 	do {
 		// Get new data point
-		scanf("%lf,%lf,%lf,%d,%d,%d,%d", &x_inst, &y_inst, &z_inst, &b_tri, &b_cir, &b_x, &b_sqr);
+		scanf(
+			"%lf,%lf,%lf,%d,%d,%d,%d", 
+			&x_inst, &y_inst, &z_inst, 
+			&b_tri, &b_cir, &b_x, &b_sqr
+		);
 
 		// Print raw instantaneous readings
 		printf("%6.4lf,%6.4lf,%6.4lf,", x_inst, y_inst, z_inst);
