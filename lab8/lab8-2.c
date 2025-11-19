@@ -1,3 +1,5 @@
+// Lab 8 - Part 2
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -8,6 +10,8 @@
 #define PI 3.14159
 
 // Screen geometry
+// Use ROWS and COLS for the screen height and width (set by system)
+// MAXIMUMS
 #define NUMCOLS 100
 #define NUMROWS 72
 
@@ -16,30 +20,23 @@
 #define WALL '*'
 #define EMPTY_SPACE ' '
 
-#define MOVE_DELAY 200
+#define MOVE_DELAY 100
+#define ROLL_THRESHOLD 0.4
 
 
 // 2D character array which the maze is mapped into
 char MAZE[NUMROWS][NUMCOLS];
 
 
-// POST: Generates a random maze structure into MAZE[][]
-//You will want to use the rand() function and maybe use the output %100.  
-//You will have to use the argument to the command line to determine how 
-//difficult the maze is (how many maze characters are on the screen).
+int isCellOpen(int x, int y);
+int canMoveLeft(int x, int y);
+int canMoveRight(int x, int y);
+int canMoveDown(int x, int y);
+int canMove(int x, int y); 
+void move_avatar(int x0, int y0, int x1, int y1);
 void generate_maze(int difficulty);
-
-// PRE: MAZE[][] has been initialized by generate_maze()
-// POST: Draws the maze to the screen 
 void draw_maze(void);
-
-// PRE: 0 < x < COLS, 0 < y < ROWS, 0 < use < 255
-// POST: Draws character use to the screen and position x,y
 void draw_character(int x, int y, char use);
-
-// PRE: -1.0 < x_mag < 1.0
-// POST: Returns tilt magnitude scaled to -1.0 -> 1.0
-// You may want to reuse the roll function written in previous labs.  
 float calc_roll(float x_mag);
 
 
@@ -48,7 +45,6 @@ int main(int argc, char* argv[])
 {
 	if (argc <2) { printf("You forgot the difficulty\n"); return 1;}
 	int difficulty = atoi(argv[1]); // get difficulty from first command line arg
-
 	// setup screen    
 	initscr();
 	refresh();
@@ -59,7 +55,10 @@ int main(int argc, char* argv[])
 	
 	int avatar_x = NUMCOLS / 2;
 	int avatar_y = 0;
+
+
 	int last_move_time = 0;
+
 
 	double roll = 0.0;
 
@@ -67,8 +66,10 @@ int main(int argc, char* argv[])
 	// Generate and draw the maze, with initial avatar
 	generate_maze(difficulty);
 	draw_maze();
-
+	
 	draw_character(avatar_x, avatar_y, AVATAR);
+	
+	// Read gyroscope data to get ready for using moving averages.  
 
 
 	// Event loop
@@ -76,30 +77,46 @@ int main(int argc, char* argv[])
 	{
 		// Read data, update average
 		scanf("%d, %lf, %lf, %lf", &t, &x, &y, &z);
-		draw_character(avatar_x,avatar_y,MAZE[avatar_y][avatar_x]);
-		
-		roll = calc_roll(x);
-		if (roll > 0.4 && avatar_x - 1 > 0 && MAZE[avatar_y][avatar_x - 1] != WALL) {
-			avatar_x--;
-		}
-		else if (roll < -0.4 && avatar_x + 1 < NUMCOLS && MAZE[avatar_y][avatar_x + 1] != WALL) {
-			avatar_x++;
+
+		// Check if we can't move
+		// If not: End the game!
+		// BONUS #1/#2
+		if (!canMove(avatar_x, avatar_y)) {
+			endwin();
+
+			printf("GOT STUCK! GAME OVER!\n");
+
+			return 0;
 		}
 
 		// Is it time to move?  if so, then move avatar
 		if (t / MOVE_DELAY > last_move_time) {
 			last_move_time = t / MOVE_DELAY;
-
 			
-			if (avatar_y + 1 >= NUMROWS) {	break;		}
-			if (MAZE[avatar_y + 1][avatar_x] != WALL) {
+			roll = calc_roll(x);
+			
+			// Left Move? 
+			if (roll > ROLL_THRESHOLD && canMoveLeft(avatar_x, avatar_y)) {
+				move_avatar(avatar_x, avatar_y, avatar_x - 1, avatar_y);
+				avatar_x--;
+			}
+			
+			// Right Move?
+			else if (roll < -ROLL_THRESHOLD && canMoveRight(avatar_x, avatar_y)) {
+				move_avatar(avatar_x, avatar_y, avatar_x + 1, avatar_y);
+				avatar_x++;
+			}
+			
+			// Can we move down?
+			if (canMoveDown(avatar_x, avatar_y)) {
+				move_avatar(avatar_x, avatar_y, avatar_x, avatar_y + 1);
 				avatar_y++;
 			}
+
 		}
-		draw_character(avatar_x,avatar_y,AVATAR);
 
 		
-	} while(1); // Change this to end game at right time 
+	} while(avatar_y + 1 < NUMROWS); // Have we won?
 
 	// Print the win message
 	endwin();
@@ -108,6 +125,66 @@ int main(int argc, char* argv[])
 	return 0;
 }
 
+
+// PRE: 0 < x < COLS, 0 < y < ROWS
+// POST: Returns 1 if cell is open, 0 if cell is a wall or out of bounds
+int isCellOpen(int x, int y) {
+	if (x < 0 || x >= NUMCOLS || y < 0 || y >= NUMROWS) {
+		return 0;
+	}
+	if (MAZE[y][x] == WALL) {
+		return 0;
+	}
+	return 1;
+}
+
+
+int canMoveLeft(int x, int y) {
+	return isCellOpen(x - 1, y);;
+}
+
+
+int canMoveRight(int x, int y) {
+	return isCellOpen(x + 1, y);
+}
+
+
+int canMoveDown(int x, int y) {
+	return isCellOpen(x, y + 1);
+}
+
+
+int canMove(int x, int y) {
+	if (canMoveDown(x,y)) {
+		return 1;
+	}
+	if (!canMoveLeft(x, y) && !canMoveRight(x, y)) {
+		return 0;
+	}
+	
+	// Search x decloration
+	int xs;
+
+	for(xs = x; canMoveRight(xs, y); xs++) {
+		if (canMoveDown(xs, y)) {
+			return 1;
+		}
+	}
+
+	for(xs = x; canMoveLeft(xs, y); xs--) {
+		if (canMoveDown(xs, y)) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+
+void move_avatar(int x0, int y0, int x1, int y1) {
+	draw_character(x0, y0, MAZE[y0][x0]);
+	draw_character(x1, y1, AVATAR);
+}
 
 
 // PRE: 0 < x < COLS, 0 < y < ROWS, 0 < use < 255
