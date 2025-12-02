@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
 
 	// Current selection index
 	int sel = 0;
-	int selR, selC = 0;	// Selection row and column helper variables
+	int selR = 0, selC = 0;		// Selection row and column helper variables
 
 	char* selWord;
 	
@@ -95,7 +95,6 @@ int main(int argc, char* argv[]) {
 	int t = 0;
 	ButtonState bState;
 	JoystickState jState;
-	double jx, jy = 0.0;
 
 	initscr();
 	refresh();
