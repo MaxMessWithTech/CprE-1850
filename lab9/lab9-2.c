@@ -58,7 +58,7 @@ typedef struct {
 -	                            Prototypes
 -----------------------------------------------------------------------------*/
 int readWords(char* wl[MAXWORDS], char* filename); 
-void trimws(char* s) ;
+void trimws(char* s);
 
 void draw_words(char* wordlist[MAXWORDS], int wordCount);
 void printOutput(char* outputArr[], int length);
